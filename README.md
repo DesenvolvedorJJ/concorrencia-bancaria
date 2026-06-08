@@ -242,8 +242,9 @@ Depois que o teste terminar, abra no **navegador** e anote os dois saldos:
 
 #### 📸 Como tirar os prints para o relatório
 
-Use a **Ferramenta de Captura** do Windows (tecla `Windows + Shift + S`) para recortar a tela e
-salvar as imagens na pasta [`docs/prints/`](docs/prints/). Sugestões do que capturar: o
+Use a **Ferramenta de Captura** do Windows (tecla `Windows + Shift + S`) para recortar a tela.
+Os prints já capturados deste trabalho estão em [`print_results_case1/`](print_results_case1/)
+(Parte 1) e [`print_results_case2/`](print_results_case2/) (Parte 2). Sugestões do que capturar: o
 **Summary Report** de cada parte, um **409** na *View Results Tree* e os dois **saldos** no navegador.
 
 ---
@@ -273,66 +274,82 @@ curl http://localhost:8080/contas-versionadas/1
 
 ## 📊 Relatório de Conclusão (resultados reais)
 
-Execução real do plano (`50 threads × 2 loops` = **200 depósitos + 200 saques** por parte;
-saldo inicial `1000,00`). Os números completos estão em
-[`docs/RESULTADOS-JMETER.md`](docs/RESULTADOS-JMETER.md).
-*(Coloque seus screenshots em [`docs/prints/`](docs/prints/) e referencie-os abaixo.)*
-
-```
-summary = 402 in 00:00:03 = 130.3/s  Avg: 102  Err: 178 (44.28%)
-```
+Execução real do plano (`50 threads × 2 loops` = **100 depósitos + 100 saques** por parte;
+saldo inicial `1000,00`; depósito `10,00`, saque `5,00`). As duas partes foram rodadas
+separadamente — os prints de cada execução estão em
+[`print_results_case1/`](print_results_case1/) (Parte 1) e
+[`print_results_case2/`](print_results_case2/) (Parte 2).
 
 ### Parte 1 — Conta SEM bloqueio ❌
 
+**Summary Report (JMeter):**
+
+![Summary Report — Parte 1](print_results_case1/image1.png)
+
 | Endpoint | Amostras | HTTP 200 | HTTP 409 | Erro % |
 |----------|---------:|---------:|---------:|-------:|
+| `RESET /contas/1`    |   1 |   1 | 0 | 0,00 |
 | `/contas/1/deposito` | 100 | 100 | 0 | 0,00 |
 | `/contas/1/saque`    | 100 | 100 | 0 | 0,00 |
+| **TOTAL**            | 201 | 201 | 0 | **0,00** |
 
 ```
 Saldo inicial ......... 1000,00
 + 100 depositos x 10 ..  +1000,00
 -  100 saques   x  5 ..   -500,00
 Saldo ESPERADO ........ 1500,00
-Saldo REAL ............ 1075,00   <-- ERRADO
-DINHEIRO PERDIDO ......  425,00
+Saldo REAL ............ 1025,00   <-- ERRADO
+DINHEIRO PERDIDO ......  475,00
 ```
 
-> **Todas** as 200 requisições retornaram `200 OK`, e ainda assim **R$ 425,00 sumiram**.
-> O sistema "mentiu": reportou sucesso e corrompeu o saldo.
+**Saldo final no navegador (`GET /contas/1`):**
 
-<!-- ![Summary Parte 1](docs/prints/parte1-summary.png) -->
+![Saldo final — Parte 1](print_results_case1/image2.png)
+
+> **Todas** as 200 requisições retornaram `200 OK`, e ainda assim **R$ 475,00 sumiram**.
+> O sistema "mentiu": reportou sucesso e corrompeu o saldo.
 
 ### Parte 2 — Conta VERSIONADA (`@Version`) ✅
 
+**Summary Report (JMeter):**
+
+![Summary Report — Parte 2](print_results_case2/image1.png)
+
 | Endpoint | Amostras | HTTP 200 | HTTP 409 | Erro % |
 |----------|---------:|---------:|---------:|-------:|
-| `/contas-versionadas/1/deposito` | 100 | 12 | 88 | 88,00 |
-| `/contas-versionadas/1/saque`    | 100 | 10 | 90 | 90,00 |
+| `RESET /contas-versionadas/1`    |   1 |  1 |   0 |  0,00 |
+| `/contas-versionadas/1/deposito` | 100 | 11 |  89 | 89,00 |
+| `/contas-versionadas/1/saque`    | 100 | 11 |  89 | 89,00 |
+| **TOTAL**                        | 201 | 23 | 178 | **88,56** |
 
 ```
 Saldo inicial ......... 1000,00
-+ 12 depositos x 10 ...  +120,00   (apenas os HTTP 200)
--  10 saques   x  5 ...   -50,00   (apenas os HTTP 200)
-Saldo ESPERADO ........ 1070,00
-Saldo REAL ............ 1070,00   <-- CERTO
++ 11 depositos x 10 ...  +110,00   (apenas os HTTP 200)
+-  11 saques   x  5 ...   -55,00   (apenas os HTTP 200)
+Saldo ESPERADO ........ 1055,00
+Saldo REAL ............ 1055,00   <-- CERTO
 DIFERENCA .............     0,00   (22 escritas aceitas; as 178 colisões viraram 409)
 ```
 
+**Saldo final no navegador (`GET /contas-versionadas/1`):**
+
+![Saldo final — Parte 2](print_results_case2/image2.png)
+
 > 178 operações conflitantes foram **rejeitadas com `409 Conflict`** e revertidas.
 > O saldo final é **exatamente** a soma das operações aceitas. **Nada se perdeu.**
-
-<!-- ![Summary Parte 2](docs/prints/parte2-summary.png) -->
-<!-- ![409 na View Results Tree](docs/prints/parte2-view-tree.png) -->
+>
+> 💡 O campo `version` (aqui `461`) é o contador do lock otimista: ele soma **todas** as
+> escritas bem-sucedidas desde que a aplicação subiu (incluindo execuções anteriores e os
+> `reset`), por isso é maior que as 22 operações desta rodada.
 
 ### Comparativo final
 
 | Critério | Parte 1 (sem bloqueio) | Parte 2 (`@Version`) |
 |---|---|---|
-| Requisições `200 OK` | 200 / 200 | 22 / 200 |
+| Requisições `200 OK` (depósito+saque) | 200 / 200 | 22 / 200 |
 | Requisições `409 Conflict` | 0 | 178 |
-| Saldo final | `1075,00` | `1070,00` |
-| Bate com as operações aceitas? | **NÃO (−425,00)** | **SIM (0,00)** |
+| Saldo final | `1025,00` | `1055,00` |
+| Bate com as operações aceitas? | **NÃO (−475,00)** | **SIM (0,00)** |
 | Integridade dos dados | ❌ corrompida | ✅ preservada |
 
 **Conclusão:** sem controle de concorrência, requisições simultâneas geram *Lost Update* — o saldo
@@ -351,9 +368,8 @@ sistema financeiro. Em produção, o cliente trataria o 409 com uma política de
 ├── plano-testes-concorrencia.jmx        <- plano JMeter (raiz, obrigatório)
 ├── pom.xml
 ├── mvnw / mvnw.cmd                       <- Maven Wrapper
-├── docs/
-│   ├── RESULTADOS-JMETER.md              <- saída de uma execução real
-│   └── prints/                           <- coloque aqui seus screenshots
+├── print_results_case1/                  <- prints da Parte 1 (Summary + saldo final)
+├── print_results_case2/                  <- prints da Parte 2 (Summary + saldo final)
 └── src/
     ├── main/java/br/com/faculdade/concorrencia/
     │   ├── ConcorrenciaBancariaApplication.java
