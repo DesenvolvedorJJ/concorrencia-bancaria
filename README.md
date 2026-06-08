@@ -198,7 +198,7 @@ O arquivo **[`plano-testes-concorrencia.jmx`](plano-testes-concorrencia.jmx)** e
 
 Ele contém:
 
-- **setUp** que reseta as duas contas para `100000,00`;
+- **setUp** que reseta as duas contas para `1000,00`;
 - **Thread Group "Parte 1"** → 50 threads × 2 loops disparando `deposito` (10,00) e `saque` (5,00) em `/contas/1`;
 - **Thread Group "Parte 2"** → o **mesmo cenário** apontando para `/contas-versionadas/1`;
 - Listeners *Summary Report*, *Aggregate Report* e *View Results Tree*.
@@ -238,7 +238,7 @@ Depois que o teste terminar, abra no **navegador** e anote os dois saldos:
 | Conclusão | "respondeu OK mas corrompeu o saldo" | "rejeitou os conflitos e manteve o saldo correto" |
 
 > 🔁 **Para rodar de novo do zero:** é só clicar no ▶ outra vez. O próprio plano já reseta as duas
-> contas para `100000,00` antes de começar — não precisa reiniciar a aplicação.
+> contas para `1000,00` antes de começar — não precisa reiniciar a aplicação.
 
 #### 📸 Como tirar os prints para o relatório
 
@@ -274,12 +274,12 @@ curl http://localhost:8080/contas-versionadas/1
 ## 📊 Relatório de Conclusão (resultados reais)
 
 Execução real do plano (`50 threads × 2 loops` = **200 depósitos + 200 saques** por parte;
-saldo inicial `100000,00`). Os números completos estão em
+saldo inicial `1000,00`). Os números completos estão em
 [`docs/RESULTADOS-JMETER.md`](docs/RESULTADOS-JMETER.md).
 *(Coloque seus screenshots em [`docs/prints/`](docs/prints/) e referencie-os abaixo.)*
 
 ```
-summary = 402 in 00:00:03 = 127.0/s  Avg: 112  Err: 178 (44.28%)
+summary = 402 in 00:00:03 = 130.3/s  Avg: 102  Err: 178 (44.28%)
 ```
 
 ### Parte 1 — Conta SEM bloqueio ❌
@@ -290,15 +290,15 @@ summary = 402 in 00:00:03 = 127.0/s  Avg: 112  Err: 178 (44.28%)
 | `/contas/1/saque`    | 100 | 100 | 0 | 0,00 |
 
 ```
-Saldo inicial ......... 100000,00
+Saldo inicial ......... 1000,00
 + 100 depositos x 10 ..  +1000,00
 -  100 saques   x  5 ..   -500,00
-Saldo ESPERADO ........ 100500,00
-Saldo REAL ............ 100070,00   <-- ERRADO
-DINHEIRO PERDIDO ......    430,00
+Saldo ESPERADO ........ 1500,00
+Saldo REAL ............ 1075,00   <-- ERRADO
+DINHEIRO PERDIDO ......  425,00
 ```
 
-> **Todas** as 200 requisições retornaram `200 OK`, e ainda assim **R$ 430,00 sumiram**.
+> **Todas** as 200 requisições retornaram `200 OK`, e ainda assim **R$ 425,00 sumiram**.
 > O sistema "mentiu": reportou sucesso e corrompeu o saldo.
 
 <!-- ![Summary Parte 1](docs/prints/parte1-summary.png) -->
@@ -307,16 +307,16 @@ DINHEIRO PERDIDO ......    430,00
 
 | Endpoint | Amostras | HTTP 200 | HTTP 409 | Erro % |
 |----------|---------:|---------:|---------:|-------:|
-| `/contas-versionadas/1/deposito` | 100 | 13 | 87 | 87,00 |
-| `/contas-versionadas/1/saque`    | 100 |  9 | 91 | 91,00 |
+| `/contas-versionadas/1/deposito` | 100 | 12 | 88 | 88,00 |
+| `/contas-versionadas/1/saque`    | 100 | 10 | 90 | 90,00 |
 
 ```
-Saldo inicial ......... 100000,00
-+ 13 depositos x 10 ...  +130,00   (apenas os HTTP 200)
--   9 saques   x  5 ...   -45,00   (apenas os HTTP 200)
-Saldo ESPERADO ........ 100085,00
-Saldo REAL ............ 100085,00   <-- CERTO
-DIFERENCA .............      0,00   (version = 23 = 1 reset + 22 movimentos)
+Saldo inicial ......... 1000,00
++ 12 depositos x 10 ...  +120,00   (apenas os HTTP 200)
+-  10 saques   x  5 ...   -50,00   (apenas os HTTP 200)
+Saldo ESPERADO ........ 1070,00
+Saldo REAL ............ 1070,00   <-- CERTO
+DIFERENCA .............     0,00   (22 escritas aceitas; as 178 colisões viraram 409)
 ```
 
 > 178 operações conflitantes foram **rejeitadas com `409 Conflict`** e revertidas.
@@ -331,8 +331,8 @@ DIFERENCA .............      0,00   (version = 23 = 1 reset + 22 movimentos)
 |---|---|---|
 | Requisições `200 OK` | 200 / 200 | 22 / 200 |
 | Requisições `409 Conflict` | 0 | 178 |
-| Saldo final | `100070,00` | `100085,00` |
-| Bate com as operações aceitas? | **NÃO (−430,00)** | **SIM (0,00)** |
+| Saldo final | `1075,00` | `1070,00` |
+| Bate com as operações aceitas? | **NÃO (−425,00)** | **SIM (0,00)** |
 | Integridade dos dados | ❌ corrompida | ✅ preservada |
 
 **Conclusão:** sem controle de concorrência, requisições simultâneas geram *Lost Update* — o saldo
