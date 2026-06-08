@@ -1,4 +1,10 @@
-# Concorrência e Consistência em Banco de Dados com Spring Boot
+# Trabalho Prático: Concorrência e Consistência em Banco de Dados com Spring Boot
+
+## Turma: C794NL
+
+## Alunos:
+- JOÃO PEDRO OLIVEIRA DA SILVA
+- LUIZ FLÁVIO DE OLIVEIRA PINTO
 
 Trabalho prático sobre **problemas de concorrência em sistemas transacionais** (o problema da
 *Lost Update* / Atualização Perdida) e como resolvê-los com **JPA/Hibernate** usando
@@ -95,7 +101,7 @@ Na aba **Console** do Eclipse, clique no **quadrado vermelho** (botão *Terminat
 
 ### Exemplos com `curl`
 
-> *Opcional / avançado:* só para quem quiser testar pelo terminal. Para o trabalho, você vai usar o
+> *Opcional:* só para quem quiser testar pelo terminal. Para o trabalho, você vai usar o
 > **navegador** (consultas) e o **JMeter** (depósitos e saques em massa) — não precisa de `curl`.
 
 ```bash
@@ -125,7 +131,7 @@ curl http://localhost:8080/contas/1
 
 ## 🧠 O que está acontecendo (a teoria do trabalho)
 
-### Parte 1 — O problema da *Lost Update*
+### Parte 1 — O problema da *Lost Update* (ALUNO LUIZ FLÁVIO DE OLIVEIRA PINTO)
 
 O serviço faz o clássico **ler → calcular → gravar**, sem nenhuma proteção:
 
@@ -150,7 +156,7 @@ Thread B:    lê 100 ───────────────────�
 A atualização da Thread A é **sobrescrita** pela da Thread B. Resultado: **uma operação se perde**,
 mesmo que o cliente tenha recebido `200 OK` nas duas. É a **Atualização Perdida**.
 
-### Parte 2 — A solução com Lock Otimista (`@Version`)
+### Parte 2 — A solução com Lock Otimista (`@Version`) (ALUNO JOÃO PEDRO OLIVEIRA DA SILVA)
 
 A entidade ganha um campo `@Version`:
 
